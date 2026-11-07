@@ -214,4 +214,88 @@ $("#f").addEventListener("submit",e=>{e.preventDefault();const v=$("#in").value.
 const GUIDE={
 h:"Catatan harian. Sebutkan:\n• kegiatan dan bahan/jumlahnya (mis. pemupukan 5 kg)\n• siapa yang mengerjakan (istri, suami, buruh) dan lama kerja (jam)\n• uang keluar atau uang masuk (Rp)\n• kode tanam (A, B, C, atau “bersama”)\n• tanggal, bila bukan hari ini (mis. 3/11 atau kemarin)\nTenaga keluarga yang tidak dibayar tetap dicatat jamnya.\n\nContoh: 3/11 pemupukan 5 kg istri dan buruh 3 jam 75 ribu kode A",
 p:"Catatan panen. Sebutkan:\n• tanggal panen, bila bukan hari ini\n• petak atau lokasi\n• hasil total (kg)\n• yang layak jual (kg)\n• yang afkir/rusak (kg)\n• kondisi atau mutu (mis. ada daun rusak)\n• kode tanam\n\nContoh: panen petak 1 total 100 kg layak 90 afkir 10 ada daun rusak kode A\nBila panen kode itu sudah tuntas, tambahkan kata “selesai”.",
-j:"Catatan penjualan. Sebutkan:\n• tanggal, bila bukan hari ini\n• pe
+j:"Catatan penjualan. Sebutkan:\n• tanggal, bila bukan hari ini\n• pembeli (mis. ke Ibu Ayu)\n• jumlah terjual (kg)\n• harga per kg (Rp)\n• sudah atau belum dibayar\n• kode tanam\nNilai jual dihitung otomatis: kg × harga.\n\nContoh: jual 25 kg ke Ibu Ayu harga 10 ribu per kilo sudah dibayar kode A"};
+function setMode(m){MODE=m;document.querySelectorAll("#chips button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===m));$("#in").placeholder=({h:"Contoh: 3/11 pemupukan 5 kg istri 3 jam 75 ribu kode A",p:"Contoh: panen petak 1 total 100 kg layak 90 afkir 10 kode A",j:"Contoh: jual 25 kg ke Ibu Ayu harga 10 ribu per kilo kode A"})[m]||"Pilih jenis catatan di atas…";if(m)say(GUIDE[m],"bot")}
+[["h","Catatan harian"],["p","Catatan panen"],["j","Catatan penjualan"]].forEach(x=>{const b=document.createElement("button");b.type="button";b.textContent=x[1];b.dataset.m=x[0];b.setAttribute("aria-pressed","false");b.onclick=()=>setMode(x[0]);$("#chips").appendChild(b)});
+$("#in").placeholder="Pilih jenis catatan di atas…";
+let welcomed=false;
+function chatState(){
+ const ok=profOK(),g=$("#gate");g.hidden=ok;
+ if(!ok){g.textContent="Sebelum mencatat, isi dulu data diri petani di tab Profil (kolom bertanda * wajib).";const b=document.createElement("button");b.className="btn pri";b.type="button";b.textContent="Isi data diri";b.onclick=()=>goTab("prof");g.append(document.createElement("br"),b)}
+ $("#f").classList.toggle("off",!ok);["#in","#send","#mic"].forEach(s=>$(s).disabled=!ok);document.querySelectorAll("#chips button").forEach(b=>b.disabled=!ok);
+ if(ok&&!welcomed){welcomed=true;say("Halo"+(S.id.nama?", "+S.id.nama:"")+"! Mau mencatat apa hari ini? Pilih: catatan harian, catatan panen, atau catatan penjualan. Kamu juga bisa bertanya, misalnya “untung kode A berapa?”.","bot")}}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){const mic=$("#mic"),rec=new SR();mic.hidden=false;rec.lang="id-ID";rec.interimResults=false;rec.onresult=e=>{$("#in").value=e.results[0][0].transcript};rec.onend=()=>mic.classList.remove("rec");mic.onclick=()=>{try{mic.classList.add("rec");rec.start()}catch(e){}}}
+function goTab(n){document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",x.dataset.t===n));document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===n));render()}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>goTab(b.dataset.t));
+function renderList(){
+ const lp=$("#lp");lp.innerHTML="";
+ if(!S.rec.length){lp.innerHTML='<p class="empty">Belum ada catatan.<br>Mulai dari tab Catat.</p>';return}
+ let last="";
+ S.rec.slice().sort((a,b)=>b.tgl.localeCompare(a.tgl)||b.id-a.id).forEach(r=>{
+  if(r.tgl!==last){last=r.tgl;lp.insertAdjacentHTML("beforeend",'<div class="day">'+esc(new Date(r.tgl+"T00:00").toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"}))+"</div>")}
+  const sub=r.t==="h"?[r.pel,r.jam?r.jam+" jam":"",r.kat].filter(Boolean).join(" · "):r.t==="p"?(r.petak?"Petak "+r.petak+" · ":"")+"Layak "+r.layak+" kg · afkir "+r.afkir+" kg"+(r.cat?" · "+r.cat:""):(r.harga?fmt(r.harga)+"/kg · ":"")+r.bayar;
+  const amt=r.t==="j"?'<div class="in">+'+fmt(r.nilai)+"</div>":(r.t==="h"&&(r.masuk||r.keluar))?'<div class="'+(r.masuk?"in":"out")+'">'+(r.masuk?"+"+fmt(r.masuk):"−"+fmt(r.keluar))+"</div>":"";
+  const el=document.createElement("div");el.className="row";
+  el.innerHTML='<div class="t"><span class="pill">'+({h:"Harian",p:"Panen",j:"Jual"})[r.t]+"</span> "+esc(title(r))+"<small>"+esc(sub)+(r.kode?" · Kode "+esc(r.kode):" · <b>Kode?</b>")+"</small></div>"+amt+'<button class="x" aria-label="Hapus">×</button>';
+  el.querySelector(".x").onclick=()=>{S.rec=S.rec.filter(y=>y.id!==r.id);save();render()};
+  lp.appendChild(el)})}
+function renderLap(){
+ const R=report(),T=R.tot,L=R.L,el=$("#lapp");
+ const th=a=>"<tr>"+a.map(x=>"<th>"+x+"</th>").join("")+"</tr>",tr=a=>"<tr>"+a.map(x=>"<td>"+x+"</td>").join("")+"</tr>",clr=v=>'<b class="'+(v>=0?"in":"out")+'">'+fmt(v)+"</b>",kg=v=>r1(v).toLocaleString("id-ID")+" kg";
+ let h="<h2>Hasil usaha tani (07)</h2><div class='sc'><table>"+[["Total hasil panen",kg(T.panen)],["Layak jual / afkir",kg(T.layak)+" / "+kg(T.afkir)],["Total hasil terjual",kg(T.kgJ)],["Penerimaan penjualan",fmt(T.pen)],["…yang belum dibayar",fmt(T.piutang)],["Biaya langsung",fmt(T.lang)],["Biaya tidak langsung",fmt(T.tl)],["Total biaya usaha tani",fmt(T.biaya)],["<b>Laba/rugi</b>",clr(T.laba)]].map(tr).join("")+"</table></div>";
+ const open=S.kel.filter(k=>!k.selesai).map(k=>k.kode);
+ if(open.length)h+='<p class="note">Kelompok '+esc(open.join(", "))+" belum ditandai selesai panen, jadi hasilnya belum final.</p>";
+ h+="<h2>Hasil per kelompok tanam (07A)</h2><div class='sc'><table>"+th(["Kode","Penjualan","Biaya langsung","Biaya bersama","Biaya lain","Laba/rugi"]);
+ R.per.forEach(p=>{const k=S.kel.find(x=>x.kode===p.kode);h+=tr([esc(p.kode)+(k&&!k.selesai?" <small>(masih tumbuh)</small>":""),fmt(p.pen),fmt(p.lang),fmt(p.ber),fmt(p.lain),clr(p.pen-p.lang-p.ber-p.lain)])});
+ h+=tr(["<b>Total</b>",fmt(T.pen),fmt(T.lang),fmt(R.per.reduce((s,p)=>s+p.ber,0)),fmt(T.tl),clr(T.laba)])+"</table></div>";
+ h+="<h2>Rekap biaya (06)</h2><div class='sc'><table>"+th(["Kelompok biaya","Langsung (dari catatan)","Tidak langsung / perkiraan"]);
+ CATS.forEach(c=>{h+=tr([esc(c),fmt(R.cats[c]),'<input class="num" inputmode="numeric" data-cat="'+esc(c)+'" value="'+(S.tl[c]||"")+'">'])});
+ h+="</table></div><p class='note'>Jam kerja tercatat: "+r1(T.jam)+" jam, termasuk tenaga keluarga "+r1(T.jamK)+" jam. Isi nilai perkiraan tenaga keluarga di kolom kanan bila ingin diperhitungkan.</p>";
+ h+="<h2>Biaya bersama (07B)</h2><label class='fl'>Dasar pembagian<select id='dasar'><option value='sama'"+(S.dasar==="sama"?" selected":"")+">Sama rata</option><option value='luas'"+(S.dasar==="luas"?" selected":"")+">Menurut luas (m²)</option></select></label>";
+ if(R.bers.length){h+="<div class='sc'><table>"+th(["Tanggal","Jenis","Total"].concat(L.map(esc)));
+  R.bers.forEach(b=>{h+=tr([b.r.tgl.slice(8)+"/"+b.r.tgl.slice(5,7),esc(b.r.keg),fmt(b.r.keluar)].concat(L.map(c=>b.a[c]!=null?fmt(b.a[c]):"–")))});h+="</table></div>"}
+ else h+='<p class="note">Belum ada biaya bersama. Tulis “bersama” atau “A+B” saat mencatat pengeluaran.</p>';
+ h+="<h2>Rencana perbaikan musim depan</h2><textarea id='kep' class='num' rows='4'>"+esc(S.keputusan)+"</textarea>";
+ h+='<button class="btn" id="csv">Unduh CSV</button><button class="btn" id="clr">Hapus semua data</button><p class="note">Data tersimpan di HP ini saja. Unduh CSV untuk cadangan.</p>';
+ el.innerHTML=h}
+$("#lapp").addEventListener("change",e=>{const x=e.target;if(x.dataset.cat){S.tl[x.dataset.cat]=num(x.value)||0;save();renderLap()}else if(x.id==="dasar"){S.dasar=x.value;save();renderLap()}else if(x.id==="kep"){S.keputusan=x.value;save()}});
+$("#lapp").addEventListener("click",e=>{if(e.target.id==="csv")csv();if(e.target.id==="clr"&&confirm("Hapus SEMUA data (profil, kelompok, catatan)?")){S=FRESH();save();render();renderProf()}});
+function csv(){
+ const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"',H=["jenis","tanggal","uraian","pelaksana","jam","masuk","keluar","hasil_kg","layak_kg","afkir_kg","harga_per_kg","nilai_jual","status_bayar","kode","kategori_biaya"];
+ const rows=S.rec.map(r=>[r.t==="h"?"Harian":r.t==="p"?"Panen":"Penjualan",r.tgl,r.t==="h"?r.keg:r.t==="p"?r.kom:r.produk,r.pel||"",r.jam||"",r.masuk||"",r.keluar||"",r.t==="p"?r.total:r.t==="j"?r.kg:"",r.layak??"",r.afkir??"",r.harga??"",r.nilai??"",r.bayar||"",r.kode||"",r.kat||""]);
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+[H].concat(rows).map(x=>x.map(q).join(",")).join("\n")],{type:"text/csv"}));a.download="catatan-tani.csv";a.click()}
+function fld(o,k,lab,type,opt){
+ const w=document.createElement("label");w.className="fl";w.append(lab);let i;
+ if(type==="select"){i=document.createElement("select");opt.forEach(v=>i.add(new Option(v||"Pilih…",v)))}
+ else if(type==="area"){i=document.createElement("textarea");i.rows=3}
+ else{i=document.createElement("input");i.type=type||"text"}
+ i.value=o[k]||"";i.oninput=i.onchange=()=>{o[k]=i.value;save()};w.append(i);return w}
+function renderProf(){
+ const p=$("#pp");p.innerHTML="";
+ const card=h=>{const c=document.createElement("div");c.className="card";if(h){const e=document.createElement("h2");e.textContent=h;c.append(e)}p.append(c);return c},grid=(...a)=>{const g=document.createElement("div");g.className="g2";g.append(...a);return g};
+ const I=S.id,c1=card("Data diri petani selada");
+ c1.append(fld(I,"nama","Nama petani/pencatat *"),fld(I,"pasangan","Nama suami/istri (opsional)"),fld(I,"kelompok","Kelompok tani *"),fld(I,"varietas","Varietas selada (mis. keriting, romaine) *"),
+  grid(fld(I,"luas","Luas lahan *"),fld(I,"satuan","Satuan *","select",["","m²","are","ha"])),
+  fld(I,"status","Status lahan *","select",["","Milik sendiri","Sewa","Bagi hasil","Lainnya"]),fld(I,"statusLain","Jika lainnya, tuliskan"),fld(I,"lokasi","Dusun/desa/kecamatan *"),fld(I,"catatan","Catatan awal (sumber bibit, modal awal, dll.)","area"));
+ const nb=document.createElement("p");nb.className="note";nb.textContent="Tanggal tanam, perkiraan panen, dan periode tanam diisi pada setiap kode tanam di bawah.";
+ const sv=document.createElement("button");sv.className="btn pri";sv.type="button";sv.textContent="Simpan dan mulai mencatat";const pm=document.createElement("p");pm.className="note";
+ sv.onclick=()=>{const mi=missing();if(mi.length){pm.textContent="Lengkapi dulu: "+mi.join(", ")+".";return}if(!S.kel.length){ensure("A");save();renderProf()}goTab("chat")};
+ c1.append(nb,sv,pm);
+ const c2=card("Kode tanam (A, B, C…)");
+ S.kel.slice().sort((a,b)=>a.kode.localeCompare(b.kode)).forEach(k=>{
+  const b=document.createElement("div");b.className="card";
+  const hd=document.createElement("div");hd.className="row";hd.innerHTML="<div class='t'><b>Kode tanam "+esc(k.kode)+"</b></div><button class='x' aria-label='Hapus kelompok'>×</button>";
+  hd.querySelector(".x").onclick=()=>{if(confirm("Hapus kode tanam "+k.kode+"? Catatan yang berkode "+k.kode+" tetap tersimpan.")){S.kel=S.kel.filter(x=>x!==k);save();renderProf()}};
+  b.append(hd,grid(fld(k,"tgl","Tanggal tanam","date"),fld(k,"petak","Petak / lokasi")),grid(fld(k,"luas","Luas (m²)"),fld(k,"bibit","Jumlah bibit")),grid(fld(k,"est","Perkiraan panen","date"),fld(k,"selesai","Selesai panen (tgl)","date")),fld(k,"musim","Musim/periode tanam"));
+  c2.append(b)});
+ const add=document.createElement("button");add.className="btn";add.type="button";add.textContent="+ Tambah kode tanam";
+ add.onclick=()=>{const u=S.kel.map(k=>k.kode),n="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find(x=>!u.includes(x));ensure(n);save();renderProf()};
+ c2.append(add)}
+function render(){renderList();renderLap();chatState();if(!$("#pp").children.length)renderProf()}
+render();if(!profOK())goTab("prof");
+})();
+</script>
+</body>
+</html>
+
