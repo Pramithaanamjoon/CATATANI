@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catatan Tani</title>
+<style>
+:root{--bg:#f1f4ec;--card:#fff;--ink:#1c2a1f;--mute:#5d6b5f;--line:#d9e0d0;--green:#1e4b2e;--gold:#e3a008;--in:#1e7a3c;--out:#b5472b;--bubble:#1e4b2e;--bubbleink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111a13;--card:#1b271e;--ink:#e8efe3;--mute:#9aab9c;--line:#2c3b2f;--green:#2f7a47;--in:#5cc57f;--out:#f08a6c;--bubble:#2f7a47}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
+header{background:var(--green);color:#fff;padding:12px 16px;display:flex;align-items:baseline;gap:10px}
+header h1{font:700 19px/1 Georgia,"Times New Roman",serif;margin:0}
+header span{font-size:13px;opacity:.8}
+nav{display:flex;background:var(--card);border-bottom:1px solid var(--line)}
+nav button{flex:1;padding:12px 0;border:0;background:none;color:var(--mute);font:600 15px inherit;font-family:inherit;border-bottom:3px solid transparent}
+nav button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--gold)}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+section{display:none;flex:1;min-height:0;flex-direction:column}
+section.on{display:flex}
+#log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:85%;padding:10px 13px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
+.bot{background:var(--card);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+.me{background:var(--bubble);color:var(--bubbleink);align-self:flex-end;border-bottom-right-radius:4px}
+#chips{display:flex;gap:8px;overflow-x:auto;padding:0 14px 8px}
+#chips button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:18px;padding:7px 12px;font:14px inherit;font-family:inherit}
+form{display:flex;gap:8px;padding:10px 14px;background:var(--card);border-top:1px solid var(--line)}
+input[type=text]{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:22px;padding:11px 16px;font:16px inherit;font-family:inherit}
+.rb{width:46px;height:46px;border-radius:50%;border:0;flex:none;font-size:20px;display:grid;place-items:center}
+#mic{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+#mic.rec{background:var(--out);color:#fff}
+#send{background:var(--gold);color:#1c1400;font-weight:700}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.pad{padding:14px;overflow-y:auto;flex:1}
+.day{font-weight:700;margin:14px 0 6px;color:var(--mute);font-size:14px}
+.row{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.row .t{flex:1;min-width:0}.row small{color:var(--mute);display:block}
+.in{color:var(--in);font-weight:700}.out{color:var(--out);font-weight:700}
+.x{border:0;background:none;color:var(--mute);font-size:20px;padding:4px 8px}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.big div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.big div:last-child{grid-column:1/3}
+.big small{color:var(--mute);display:block}.big b{font-size:20px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:15px}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);font-weight:600;font-size:13px}
+.acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.acts button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 14px;font:15px inherit;font-family:inherit}
+.empty{color:var(--mute);text-align:center;margin-top:40px}
+.note{color:var(--mute);font-size:13px;margin-top:14px}
+</style>
+</head>
+<body>
+<header><h1>Catatan Tani</h1><span>Cukup bicara, data tercatat</span></header>
+<nav role="tablist">
+<button role="tab" aria-selected="true" data-t="chat">Catat</button>
+<button role="tab" aria-selected="false" data-t="list">Riwayat</button>
+<button role="tab" aria-selected="false" data-t="sum">Ringkasan</button>
+</nav>
+<main>
+<section id="chat" class="on">
+<div id="log" aria-live="polite"></div>
+<div id="chips"></div>
+<form id="f" autocomplete="off">
+<button type="button" id="mic" class="rb" aria-label="Bicara" hidden>🎤</button>
+<input type="text" id="in" placeholder="Contoh: jual cabai 100 kg harga 20 ribu per kilo" aria-label="Pesan">
+<button class="rb" id="send" aria-label="Kirim">➤</button>
+</form>
+</section>
+<section id="list"><div class="pad" id="lp"></div></section>
+<section id="sum"><div class="pad" id="sp"></div></section>
+</main>
+<script>
+(function(){
+var KEY="catatan-tani-v1",data=[];
+try{data=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){data=[]}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+var $=function(s){return document.querySelector(s)};
+var fmt=function(n){return "Rp"+Math.round(n).toLocaleString("id-ID")};
+var JENIS={tanam:"Tanam",rawat:"Perawatan",beli:"Beli",tenaga:"Tenaga kerja",panen:"Panen",jual:"Jual"};
+var KOM="bawang merah|bawang putih|bawang|padi|cabai|cabe|jagung|tomat|kentang|kubis|kol|sawi|kangkung|terong|timun|mentimun|semangka|melon|kedelai|kacang|singkong|ubi|pisang|kopi|kakao|sawit|karet|tebu|wortel|bayam|jahe|kunyit";
+var KOMRE=new RegExp("\\b("+KOM+")\\b");
+var QTY=/(\d+(?:[.,]\d+)?)\s*(kg|kilogram|kilo|ton|kwintal|kuintal|sak|karung|liter|botol|bungkus|pak|biji|batang|pohon|orang|hari|hektar|ha|petak|bedeng|ekor)\b/;
+var ITEM=/(pupuk\s*(?:npk|urea|za|sp-?36|kcl|phonska|kandang|organik|kompos|cair)?|pestisida|insektisida|fungisida|herbisida|obat\s*\w+|benih|bibit|mulsa|solar|bensin|plastik|ajir|polybag|upah|sewa\s*\w+)/;
+function num(s){s=String(s);if(/^\d{1,3}(\.\d{3})+$/.test(s))return +s.replace(/\./g,"");return parseFloat(s.replace(",","."))}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function money(s){
+ var re=/(rp\.?\s*)?(\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?(?![a-z])/g,m,M={juta:1e6,jt:1e6,ribu:1e3,rb:1e3,k:1e3};
+ while((m=re.exec(s))){var v=num(m[2]);if(m[3])v*=M[m[3]];if(m[3]||m[1]||v>=1000)return v}
+ return 0}
+function kgOf(r){var q=r.qty||0,u=r.unit;return u==="ton"?q*1000:(u==="kwintal"||u==="kuintal")?q*100:(u&&/^kilo|^kg/.test(u))?q:0}
+function kom(low){var m=low.match(KOMRE);if(!m)return"";return m[1]==="cabe"?"cabai":m[1]==="kol"?"kubis":m[1]}
+function parse(t){
+ var low=t.toLowerCase(),d=new Date();
+ if(/kemarin|kemaren/.test(low))d.setDate(d.getDate()-1);
+ var dm=low.match(/(\d+)\s*hari\s*(?:yang\s*)?lalu/);
+ if(dm){d.setDate(d.getDate()-dm[1]);low=low.replace(dm[0]," ")}
+ var r={id:Date.now(),tgl:iso(d),teks:t,qty:0,unit:"",jumlah:0},rest=low,q=low.match(QTY);
+ if(q){r.qty=num(q[1]);r.unit=q[2];rest=low.replace(q[0]," ")}
+ var amt=money(rest),per=/\bper\b|\btiap\b|@|\/|perkilo|perkg/.test(rest)&&!/total/.test(rest);
+ r.jumlah=(per&&r.qty)?amt*r.qty:amt;
+ r._amt=amt;
+ var k=null;
+ if(/\bjual|terjual|\blaku|dijual/.test(low))k="jual";
+ else if(/panen|manen/.test(low))k="panen";
+ else if(/upah|buruh|kuli|tenaga|ongkos kerja|bayar.*orang/.test(low))k="tenaga";
+ else if(/tanam|nanam|semai|tebar/.test(low))k="tanam";
+ else if(/beli|bayar|biaya|habis|keluar|ongkos|sewa/.test(low))k="beli";
+ else if(/semprot|siram|pupuk|rawat|bersih|cabut|obat/.test(low))k="rawat";
+ r.jenis=k;r.komoditas=kom(low);
+ var im=low.match(ITEM);
+ r.item=(k==="tenaga")?"upah":(im&&(k==="beli"||k==="rawat"))?im[0].trim():r.komoditas;
+ r.arah=k==="jual"?"masuk":(r.jumlah&&k!=="panen")?"keluar":"";
+ return r}
+function desc(r){return JENIS[r.jenis].toLowerCase()+(r.item?" "+r.item:"")+(r.qty?" "+r.qty+" "+r.unit:"")+(r.jumlah?", "+fmt(r.jumlah):"")}
+function inPeriod(r,low){
+ var n=new Date(),t=iso(n);
+ if(/hari ini/.test(low))return r.tgl===t;
+ if(/bulan ini/.test(low))return r.tgl.slice(0,7)===t.slice(0,7);
+ if(/minggu ini/.test(low)){var a=new Date(n);a.setDate(a.getDate()-6);return r.tgl>=iso(a)}
+ return true}
+function stats(rs){var s={masuk:0,keluar:0,kg:0};rs.forEach(function(r){if(r.arah==="masuk")s.masuk+=r.jumlah;else if(r.arah==="keluar")s.keluar+=r.jumlah;if(r.jenis==="panen")s.kg+=kgOf(r)});s.laba=s.masuk-s.keluar;return s}
+function query(low){
+ var kk=kom(low),rs=data.filter(function(r){return inPeriod(r,low)&&(!kk||r.komoditas===kk)});
+ var s=stats(rs),w=(kk?" "+kk:"")+(/hari ini/.test(low)?" hari ini":/bulan ini/.test(low)?" bulan ini":/minggu ini/.test(low)?" minggu ini":"");
+ if(!rs.length)return"Belum ada catatan"+w+".";
+ if(/untung|laba|rugi/.test(low))return(s.laba>=0?"Untung":"Rugi")+w+": "+fmt(Math.abs(s.laba))+"\n(pemasukan "+fmt(s.masuk)+" − pengeluaran "+fmt(s.keluar)+")";
+ if(/pengeluaran|biaya|habis/.test(low))return"Pengeluaran"+w+": "+fmt(s.keluar);
+ if(/pemasukan|penjualan|pendapatan|hasil jual/.test(low))return"Pemasukan"+w+": "+fmt(s.masuk);
+ if(/panen/.test(low))return"Panen"+w+": "+s.kg.toLocaleString("id-ID")+" kg";
+ return"Ringkasan"+w+":\nPemasukan "+fmt(s.masuk)+"\nPengeluaran "+fmt(s.keluar)+"\n"+(s.laba>=0?"Untung ":"Rugi ")+fmt(Math.abs(s.laba))+(s.kg?"\nPanen "+s.kg.toLocaleString("id-ID")+" kg":"")}
+function handle(t){
+ var low=t.toLowerCase().trim();
+ if(/hapus|batal|undo/.test(low)&&/terakhir|tadi|barusan|itu/.test(low)){
+  var x=data.pop();save();return x?"Dihapus: "+desc(x):"Belum ada catatan."}
+ var r=parse(t);
+ if(!r.jenis&&r._amt&&/^(harga|total|totalnya|seharga|biayanya|jadi)\b/.test(low)&&data.length){
+  var l=data[data.length-1];l.jumlah=(l.qty&&/per|tiap|@/.test(low))?r._amt*l.qty:r._amt;
+  if(!l.arah)l.arah=l.jenis==="jual"?"masuk":"keluar";save();return"Diperbarui: "+desc(l)}
+ if(/berapa|\?/.test(low)||/^(total|untung|rugi|laba|rekap|ringkas|lihat)/.test(low))return query(low);
+ if(!r.jenis)return"Aku belum paham. Coba tulis seperti:\n• tanam cabai 2 petak\n• beli pupuk NPK 5 sak total 750 ribu\n• jual cabai 100 kg harga 20 ribu per kilo\nAtau tanya: untung cabai berapa?";
+ delete r._amt;data.push(r);save();
+ var a="Dicatat ✓ "+desc(r);
+ if((r.jenis==="jual"||r.jenis==="beli"||r.jenis==="tenaga")&&!r.jumlah)a+="\nHarganya belum ada. Ketik \"harga 750 ribu\" untuk melengkapi.";
+ return a}
+function say(t,c){var d=document.createElement("div");d.className="m "+c;d.textContent=t;$("#log").appendChild(d);$("#log").scrollTop=1e9}
+$("#f").addEventListener("submit",function(e){e.preventDefault();var v=$("#in").value.trim();if(!v)return;$("#in").value="";say(v,"me");say(handle(v),"bot");render()});
+var EX=["tanam cabai 2 petak","beli pupuk NPK 5 sak total 750 ribu","bayar 3 orang tanam 300 ribu","panen cabai 120 kg","jual cabai 100 kg harga 20 ribu per kilo","untung cabai berapa?","hapus yang terakhir"];
+EX.forEach(function(t){var b=document.createElement("button");b.type="button";b.textContent=t;b.onclick=function(){$("#in").value=t;$("#in").focus()};$("#chips").appendChild(b)});
+say("Halo! Ceritakan kegiatan tani hari ini, lengkap dengan harganya. Aku catat otomatis. Kamu juga bisa bertanya, misalnya \"untung cabai berapa?\". Contoh ada di bawah.","bot");
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){var mic=$("#mic");mic.hidden=false;var rec=new SR();rec.lang="id-ID";rec.interimResults=false;
+ rec.onresult=function(e){$("#in").value=e.results[0][0].transcript};
+ rec.onend=function(){mic.classList.remove("rec")};
+ mic.onclick=function(){try{mic.classList.add("rec");rec.start()}catch(e){}}}
+document.querySelectorAll("nav button").forEach(function(b){b.onclick=function(){
+ document.querySelectorAll("nav button").forEach(function(x){x.setAttribute("aria-selected",x===b)});
+ document.querySelectorAll("section").forEach(function(s){s.classList.toggle("on",s.id===b.dataset.t)});render()}});
+function render(){
+ var lp=$("#lp");lp.innerHTML="";
+ if(!data.length)lp.innerHTML='<p class="empty">Belum ada catatan.<br>Mulai dari tab Catat.</p>';
+ var last="";
+ data.slice().reverse().forEach(function(r){
+  if(r.tgl!==last){last=r.tgl;var h=document.createElement("div");h.className="day";h.textContent=new Date(r.tgl+"T00:00").toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"});lp.appendChild(h)}
+  var d=document.createElement("div");d.className="row";
+  var t=document.createElement("div");t.className="t";
+  t.textContent=JENIS[r.jenis]+(r.item?" "+r.item:"");
+  var sm=document.createElement("small");sm.textContent=(r.qty?r.qty+" "+r.unit:"")+(r.komoditas&&r.komoditas!==r.item?" · "+r.komoditas:"");t.appendChild(sm);
+  d.appendChild(t);
+  if(r.jumlah){var a=document.createElement("div");a.className=r.arah==="masuk"?"in":"out";a.textContent=(r.arah==="masuk"?"+":"−")+fmt(r.jumlah);d.appendChild(a)}
+  var x=document.createElement("button");x.className="x";x.setAttribute("aria-label","Hapus");x.textContent="×";
+  x.onclick=function(){data=data.filter(function(y){return y.id!==r.id});save();render()};
+  d.appendChild(x);lp.appendChild(d)});
+ var s=stats(data),sp=$("#sp"),g={};
+ data.forEach(function(r){var k=r.komoditas||"Umum";(g[k]=g[k]||[]).push(r)});
+ var h='<div class="big"><div><small>Pemasukan</small><b class="in">'+fmt(s.masuk)+'</b></div><div><small>Pengeluaran</small><b class="out">'+fmt(s.keluar)+'</b></div><div><small>'+(s.laba>=0?"Untung":"Rugi")+' keseluruhan</small><b class="'+(s.laba>=0?"in":"out")+'">'+fmt(Math.abs(s.laba))+'</b></div></div>';
+ var keys=Object.keys(g);
+ if(keys.length){h+="<table><tr><th>Tanaman</th><th>Biaya</th><th>Jual</th><th>Untung</th></tr>";
+  keys.forEach(function(k){var z=stats(g[k]);h+="<tr><td></td><td>"+fmt(z.keluar)+"</td><td>"+fmt(z.masuk)+"</td><td class='"+(z.laba>=0?"in":"out")+"'>"+fmt(z.laba)+"</td></tr>"});
+  h+="</table>"}
+ h+='<div class="acts"><button id="csv">Unduh CSV</button><button id="clr">Hapus semua</button></div><p class="note">Data tersimpan di HP ini saja (browser). Unduh CSV untuk cadangan.</p>';
+ sp.innerHTML=h;
+ var rows=sp.querySelectorAll("tr");keys.forEach(function(k,i){rows[i+1].firstChild.textContent=k});
+ $("#csv").onclick=function(){
+  var c="tanggal,jenis,tanaman,item,jumlah,satuan,rupiah,arah,catatan\n";
+  data.forEach(function(r){c+=[r.tgl,JENIS[r.jenis],r.komoditas,r.item,r.qty,r.unit,r.jumlah,r.arah,'"'+r.teks.replace(/"/g,'""')+'"'].join(",")+"\n"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([c],{type:"text/csv"}));a.download="catatan-tani.csv";a.click()};
+ $("#clr").onclick=function(){if(confirm("Hapus semua catatan?")){data=[];save();render()}}}
+render();
+})();
+</script>
+</body>
+</html>
